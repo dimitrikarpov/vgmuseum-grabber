@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Platform;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 class ExportImages extends Command
 {
@@ -38,14 +39,29 @@ class ExportImages extends Command
      */
     public function handle()
     {
-        $export = new \stdClass();
-//        $platforms = Platform::all();
-//        dd($export);
-        $this->getList(Platform::whereTitle('nes')->first());
+        $platforms = Platform::all();
+
+        $data = new \stdClass();
+        foreach ($platforms as $platform) {
+            $games = $this->getList($platform);
+            $data->{$platform->title} = $games;
+        }
+
+        Storage::put('export.json', json_encode($data));
     }
 
     private function getList(Platform $platform)
     {
+        $games = $platform->games;
 
+        $list = [];
+        foreach ($games as $game) {
+            $entry = new \stdClass();
+            $entry->title = $game->title;
+            $entry->images = $game->images->pluck('file')->toArray();
+            $list[] = $entry;
+        }
+
+        return $list;
     }
 }
