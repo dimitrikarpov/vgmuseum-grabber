@@ -20,8 +20,8 @@ class GrabImages extends Command
      *
      * @var string
      */
-    protected $signature = 'grab 
-                            {--truncate : Truncate Links table before grabbing }';
+    protected $signature = 'grab {platform : specify platform zx,nes,snes,smd} 
+                                 {--truncate : truncate links table}';
 
     /**
      * The console command description.
@@ -51,9 +51,27 @@ class GrabImages extends Command
             GamesLinks::query()->truncate();
         }
 
-//        $this->storeLinks('nes', 'http://www.vgmuseum.com/nes_b.html');
-        $this->grabGames('nes');
+        switch($this->argument('platform')) {
+            case 'zx':
+                $this->storeLinks('zx', 'http://www.vgmuseum.com/zx_b.html');
+                $this->grabGames('zx');
+                break;
 
+            case 'nes':
+                $this->storeLinks('nes', 'http://www.vgmuseum.com/nes_b.html');
+                $this->grabGames('nes');
+                break;
+
+            case 'snes':
+                $this->storeLinks('snes', 'http://www.vgmuseum.com/snes_b.html');
+                $this->grabGames('snes');
+                break;
+
+            case 'smd':
+                $this->storeLinks('smd', 'http://www.vgmuseum.com/genesis_b.html');
+                $this->grabGames('smd');
+                break;
+        }
     }
 
     private function grabGames($platform)
@@ -93,14 +111,9 @@ class GrabImages extends Command
         }
     }
 
-    private function downloadImage($url)
+    private function extractPath($link)
     {
-        $info = pathinfo($url);
-        $content = file_get_contents(urlencode($url));
-        $tempFileName = "/tmp/${info['basename']}";
-        file_put_contents($tempFileName, $content);
-
-        return new UploadedFile($tempFileName, $info['basename']);
+        return trim(substr($link, 0, strrpos($link, '/')));
     }
 
     private function extractTitle($rawTitle)
@@ -108,9 +121,27 @@ class GrabImages extends Command
         return trim(substr($rawTitle, strpos($rawTitle, ':') + 1));
     }
 
-    private function extractPath($link)
+    private function downloadImage($url)
     {
-       return trim(substr($link, 0, strrpos($link, '/')));
+        $info = pathinfo($url);
+        $content = $this->getContentByCurl($url);
+
+        $tempFileName = "/tmp/${info['basename']}";
+        file_put_contents($tempFileName, $content);
+
+        return new UploadedFile($tempFileName, $info['basename']);
+    }
+
+    private function getContentByCurl($url)
+    {
+        $curl = \curl_init();
+        \curl_setopt($curl, CURLOPT_URL, $url);
+        \curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($curl, CURLOPT_HEADER, false);
+        $data = curl_exec($curl);
+        \curl_close($curl);
+
+        return $data;
     }
 
     private function storeLinks($platform, $url)
@@ -119,8 +150,8 @@ class GrabImages extends Command
         $output = $crawler->filter("li > a")->extract(['_text', 'href']);
 
         $array = [];
-        foreach($output as $item) {
-            if ($item[0] === '' || $item[1] === '#top'){
+        foreach ($output as $item) {
+            if ($item[0] === '' || $item[1] === '#top') {
                 continue;
             }
 
