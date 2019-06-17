@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Game;
 use App\GamesLinks;
+use App\Image;
 use App\Platform;
 use Illuminate\Console\Command;
 use Goutte\Client;
@@ -57,9 +59,14 @@ class GrabImages extends Command
     private function grabGames($platform)
     {
         $links = Platform::where('title', $platform)->first()->links()->pluck('url');
+
+        $bar = $this->output->createProgressBar(count($links));
+        $bar->start();
         foreach ($links as $link) {
             $this->grabGame($platform, "http://www.vgmuseum.com/${link}");
+            $bar->advance();
         }
+        $bar->finish();
     }
 
     private function grabGame($platform, $link)
@@ -67,41 +74,33 @@ class GrabImages extends Command
         $path = $this->extractPath($link);
 
         $crawler = (new Client())->request('GET', $link);
-        $title = $this->extractTitle($crawler->filter('title')->extract('_text')[0]);
-        $slug = Str::slug("${platform} ${title}");
+        $gameTitle = $this->extractTitle($crawler->filter('title')->extract('_text')[0]);
+        $gameSlug = Str::slug("${platform} ${gameTitle}");
+
+        $game = Game::firstOrCreate(
+            ['title' => $gameTitle],
+            [
+                'platform_id' => Platform::whereTitle($platform)->first()->id,
+                'slug' => Str::slug($gameTitle),
+            ]
+        );
 
         $images = $crawler->filter('img')->extract('src');
         foreach ($images as $filename) {
+            $imagePath = Storage::putFileAs("images/${gameSlug}", $this->downloadImage("{$path}/${filename}"), $filename);
 
-            /*
-$url = 'https://pay.google.com/about/static/images/social/og_image.jpg';
-$info = pathinfo($url);
-$contents = file_get_contents($url);
-$file = '/tmp/' . $info['basename'];
-file_put_contents($file, $contents);
-$uploaded_file = new UploadedFile($file, $info['basename']);
-dd($uploaded_file);
-             */
-            $url = "{$path}/${filename}";
-            $info = pathinfo($url);
-            $content = file_get_contents($url);
-            $tempFileName = "/tmp/${info['basename']}";
-            file_put_contents($tempFileName, $content);
-            $uploadedFile = new UploadedFile($tempFileName, $info['basename']);
-            $storedPath = Storage::putFileAs("images/${slug}", $uploadedFile, $filename);
-            dd($storedPath);
-
-//            $content = file_get_contents("{$path}/${filename}");
-//            Storage::putFileAs('images', $content, $filename);
-//            Storage::putFileAs('images', new File("{$path}/${filename}"), $filename);
-            dd('here');
+            Image::create(['game_id' => $game->id, 'file' => $imagePath]);
         }
-        dd($images);
     }
 
-    private function dowlnoadImage($url)
+    private function downloadImage($url)
     {
+        $info = pathinfo($url);
+        $content = file_get_contents(urlencode($url));
+        $tempFileName = "/tmp/${info['basename']}";
+        file_put_contents($tempFileName, $content);
 
+        return new UploadedFile($tempFileName, $info['basename']);
     }
 
     private function extractTitle($rawTitle)
