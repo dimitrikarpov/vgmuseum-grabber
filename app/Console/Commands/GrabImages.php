@@ -6,6 +6,10 @@ use App\GamesLinks;
 use App\Platform;
 use Illuminate\Console\Command;
 use Goutte\Client;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 
 class GrabImages extends Command
 {
@@ -54,14 +58,60 @@ class GrabImages extends Command
     {
         $links = Platform::where('title', $platform)->first()->links()->pluck('url');
         foreach ($links as $link) {
-            $this->grabGame($platform, $link);
+            $this->grabGame($platform, "http://www.vgmuseum.com/${link}");
         }
     }
 
     private function grabGame($platform, $link)
     {
-        $url = "www.vgmuseum.com/${link}";
-        dd($url);
+        $path = $this->extractPath($link);
+
+        $crawler = (new Client())->request('GET', $link);
+        $title = $this->extractTitle($crawler->filter('title')->extract('_text')[0]);
+        $slug = Str::slug("${platform} ${title}");
+
+        $images = $crawler->filter('img')->extract('src');
+        foreach ($images as $filename) {
+
+            /*
+$url = 'https://pay.google.com/about/static/images/social/og_image.jpg';
+$info = pathinfo($url);
+$contents = file_get_contents($url);
+$file = '/tmp/' . $info['basename'];
+file_put_contents($file, $contents);
+$uploaded_file = new UploadedFile($file, $info['basename']);
+dd($uploaded_file);
+             */
+            $url = "{$path}/${filename}";
+            $info = pathinfo($url);
+            $content = file_get_contents($url);
+            $tempFileName = "/tmp/${info['basename']}";
+            file_put_contents($tempFileName, $content);
+            $uploadedFile = new UploadedFile($tempFileName, $info['basename']);
+            $storedPath = Storage::putFileAs("images/${slug}", $uploadedFile, $filename);
+            dd($storedPath);
+
+//            $content = file_get_contents("{$path}/${filename}");
+//            Storage::putFileAs('images', $content, $filename);
+//            Storage::putFileAs('images', new File("{$path}/${filename}"), $filename);
+            dd('here');
+        }
+        dd($images);
+    }
+
+    private function dowlnoadImage($url)
+    {
+
+    }
+
+    private function extractTitle($rawTitle)
+    {
+        return trim(substr($rawTitle, strpos($rawTitle, ':') + 1));
+    }
+
+    private function extractPath($link)
+    {
+       return trim(substr($link, 0, strrpos($link, '/')));
     }
 
     private function storeLinks($platform, $url)
@@ -94,5 +144,4 @@ class GrabImages extends Command
 
         $bar->finish();
     }
-
 }
