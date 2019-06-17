@@ -117,7 +117,7 @@ class GrabImages extends Command
                 Image::create(['game_id' => $game->id, 'file' => $imagePath]);
             }
         } catch (\Exception $exception) {
-            $this->error("Error while grabbing {$game->title}");
+            $this->error(" Error while grabbing {$game->title}");
             $game->delete();
         }
 
@@ -132,10 +132,10 @@ class GrabImages extends Command
                 $image->delete();
             });
 
-            $this->line("{$game->title} [{$game->platform->title}] PARTIALLY grabbed");
+            $this->line(" {$game->title} [{$game->platform->title}] PARTIALLY grabbed");
             return false;
         } else {
-            $this->line("{$game->title} [{$game->platform->title}] already grabbed");
+            $this->line(" {$game->title} [{$game->platform->title}] already grabbed");
             return true;
         }
     }
@@ -182,7 +182,7 @@ class GrabImages extends Command
             $array[$item[0]] = $item[1];
         }
 
-        $this->line("Getting links for {$platform->title}");
+        $this->line(" Getting links for {$platform->title}");
         $bar = $this->output->createProgressBar(count($array));
         $bar->start();
 
