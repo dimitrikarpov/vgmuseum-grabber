@@ -92,7 +92,6 @@ class GrabImages extends Command
         $basePath = "http://www.vgmuseum.com";
         $path = $this->extractPath("{$basePath}/{$link->url}");
 
-        $crawler = (new Client())->request('GET', "{$basePath}/{$link->url}");
         $gameTitle = $link->title;
         $gameSlug = Str::slug("{$platform->title} {$gameTitle}");
 
@@ -104,6 +103,7 @@ class GrabImages extends Command
             ]);
         }
 
+        $crawler = (new Client())->request('GET', "{$basePath}/{$link->url}");
         $images = $crawler->filter('img')->extract('src');
 
         if ($this->isGrabbed($game, $images)) {
