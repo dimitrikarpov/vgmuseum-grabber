@@ -8,7 +8,6 @@ use App\Image;
 use App\Platform;
 use Illuminate\Console\Command;
 use Goutte\Client;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
@@ -21,7 +20,8 @@ class GrabImages extends Command
      * @var string
      */
     protected $signature = 'grab {platform : specify platform zx,nes,snes,smd} 
-                                 {--truncate : truncate links table}';
+                                 {--truncate : truncate links table}
+                                 {--links : grab games links table}';
 
     /**
      * The console command description.
@@ -51,24 +51,24 @@ class GrabImages extends Command
             GamesLinks::query()->truncate();
         }
 
-        switch($this->argument('platform')) {
+        if ($this->option('links')) {
+            $this->storeLinks('zx', 'http://www.vgmuseum.com/zx_b.html');
+            $this->storeLinks('nes', 'http://www.vgmuseum.com/nes_b.html');
+            $this->storeLinks('snes', 'http://www.vgmuseum.com/snes_b.html');
+            $this->storeLinks('smd', 'http://www.vgmuseum.com/genesis_b.html');
+        }
+
+        switch ($this->argument('platform')) {
             case 'zx':
-                $this->storeLinks('zx', 'http://www.vgmuseum.com/zx_b.html');
                 $this->grabGames('zx');
                 break;
-
             case 'nes':
-                $this->storeLinks('nes', 'http://www.vgmuseum.com/nes_b.html');
                 $this->grabGames('nes');
                 break;
-
             case 'snes':
-                $this->storeLinks('snes', 'http://www.vgmuseum.com/snes_b.html');
                 $this->grabGames('snes');
                 break;
-
             case 'smd':
-                $this->storeLinks('smd', 'http://www.vgmuseum.com/genesis_b.html');
                 $this->grabGames('smd');
                 break;
         }
@@ -104,10 +104,32 @@ class GrabImages extends Command
         );
 
         $images = $crawler->filter('img')->extract('src');
+
+        if ($this->isGrabbed($game, $images)) {
+            return true;
+        }
+
         foreach ($images as $filename) {
             $imagePath = Storage::putFileAs("images/${gameSlug}", $this->downloadImage("{$path}/${filename}"), $filename);
 
             Image::create(['game_id' => $game->id, 'file' => $imagePath]);
+        }
+    }
+
+    private function isGrabbed(Game $game, array $images)
+    {
+        if ($game->images()->count() === 0) {
+            return false;
+        } elseif ($game->images->count() !== count($images)) {
+            $game->images->each(function($image) {
+                $image->delete();
+            });
+
+            $this->line("{$game->title} [{$game->platform->title}] PARTIALLY grabbed");
+            return false;
+        } else {
+            $this->line("{$game->title} [{$game->platform->title}] already grabbed");
+            return true;
         }
     }
 
