@@ -15,6 +15,6 @@ class Platform extends Model
 
     public function links()
     {
-        return $this->hasMany(GamesLinks::class);
+        return $this->hasMany(Link::class);
     }
 }

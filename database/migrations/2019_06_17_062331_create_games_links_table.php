@@ -13,9 +13,10 @@ class CreateGamesLinksTable extends Migration
      */
     public function up()
     {
-        Schema::create('games_links', function (Blueprint $table) {
+        Schema::create('links', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('platform_id');
+            $table->string('title');
             $table->string('url');
             $table->timestamps();
         });
@@ -28,6 +29,6 @@ class CreateGamesLinksTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('games_links');
+        Schema::dropIfExists('links');
     }
 }

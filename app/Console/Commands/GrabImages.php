@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Game;
-use App\GamesLinks;
+use App\Link;
 use App\Image;
 use App\Platform;
 use Illuminate\Console\Command;
@@ -48,59 +48,59 @@ class GrabImages extends Command
     public function handle()
     {
         if ($this->option('truncate')) {
-            GamesLinks::query()->truncate();
+            Link::query()->truncate();
         }
 
         if ($this->option('links')) {
-            $this->storeLinks('zx', 'http://www.vgmuseum.com/zx_b.html');
-            $this->storeLinks('nes', 'http://www.vgmuseum.com/nes_b.html');
-            $this->storeLinks('snes', 'http://www.vgmuseum.com/snes_b.html');
-            $this->storeLinks('smd', 'http://www.vgmuseum.com/genesis_b.html');
+            $this->storeLinks(Platform::whereTitle('zx')->first(), 'http://www.vgmuseum.com/zx_b.html');
+            $this->storeLinks(Platform::whereTitle('nes')->first(), 'http://www.vgmuseum.com/nes_b.html');
+            $this->storeLinks(Platform::whereTitle('snes')->first(), 'http://www.vgmuseum.com/snes_b.html');
+            $this->storeLinks(Platform::whereTitle('smd')->first(), 'http://www.vgmuseum.com/genesis_b.html');
         }
 
         switch ($this->argument('platform')) {
             case 'zx':
-                $this->grabGames('zx');
+                $this->grabGames(Platform::whereTitle('zx')->first());
                 break;
             case 'nes':
-                $this->grabGames('nes');
+                $this->grabGames(Platform::whereTitle('nes')->first());
                 break;
             case 'snes':
-                $this->grabGames('snes');
+                $this->grabGames(Platform::whereTitle('snes')->first());
                 break;
             case 'smd':
-                $this->grabGames('smd');
+                $this->grabGames(Platform::whereTitle('smd')->first());
                 break;
         }
     }
 
-    private function grabGames($platform)
+    private function grabGames(Platform $platform)
     {
-        $links = Platform::whereTitle($platform)->first()->links()->pluck('url');
+        $links = $platform->links;
 
-        $bar = $this->output->createProgressBar(count($links));
+        $bar = $this->output->createProgressBar($links->count());
         $bar->start();
         foreach ($links as $link) {
-            $this->grabGame($platform, "http://www.vgmuseum.com/${link}");
+            $this->grabGame($platform, $link);
             $bar->advance();
         }
         $bar->finish();
     }
 
-    private function grabGame($platform, $link)
+    private function grabGame(Platform $platform, Link $link)
     {
-        $path = $this->extractPath($link);
+        $basePath = "http://www.vgmuseum.com";
+        $path = $this->extractPath("{$basePath}/{$link->url}");
 
-        $crawler = (new Client())->request('GET', $link);
-        $gameTitle = $this->extractTitle($crawler->filter('title')->extract('_text')[0]);
-        $gameSlug = Str::slug("${platform} ${gameTitle}");
+        $crawler = (new Client())->request('GET', "{$basePath}/{$link->url}");
+        $gameTitle = $link->title;
+        $gameSlug = Str::slug("{$platform->title} {$gameTitle}");
 
-        $game = Game::whereTitle($gameTitle)->where('platform_id', Platform::whereTitle($platform)->first()->id)->first();
+        $game = Game::whereTitle($gameTitle)->where('platform_id', $platform->id)->first();
         if (!$game) {
             $game = Game::create([
                 'title' => $gameTitle,
-                'platform_id' => Platform::whereTitle($platform)->first()->id,
-                'slug' => Str::slug($gameTitle),
+                'platform_id' => $platform->id,
             ]);
         }
 
@@ -139,11 +139,6 @@ class GrabImages extends Command
         return trim(substr($link, 0, strrpos($link, '/')));
     }
 
-    private function extractTitle($rawTitle)
-    {
-        return trim(substr($rawTitle, strpos($rawTitle, ':') + 1));
-    }
-
     private function downloadImage($url)
     {
         $info = pathinfo($url);
@@ -157,17 +152,17 @@ class GrabImages extends Command
 
     private function getContentByCurl($url)
     {
-        $curl = \curl_init();
-        \curl_setopt($curl, CURLOPT_URL, $url);
-        \curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($curl, CURLOPT_HEADER, false);
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_HEADER, false);
         $data = curl_exec($curl);
-        \curl_close($curl);
+        curl_close($curl);
 
         return $data;
     }
 
-    private function storeLinks($platform, $url)
+    private function storeLinks(Platform $platform, $url)
     {
         $crawler = (new Client())->request('GET', $url);
         $output = $crawler->filter("li > a")->extract(['_text', 'href']);
@@ -181,16 +176,15 @@ class GrabImages extends Command
             $array[$item[0]] = $item[1];
         }
 
-        $platform_id = Platform::where('title', $platform)->first()->id;
-
-        $this->line("Getting links for ${platform}");
+        $this->line("Getting links for {$platform->title}");
         $bar = $this->output->createProgressBar(count($array));
         $bar->start();
 
         foreach ($array as $title => $url) {
-            GamesLinks::create([
-                'platform_id' => $platform_id,
-                'url' => $url
+            Link::create([
+                'platform_id' => $platform->id,
+                'url' => $url,
+                'title' => $title,
             ]);
             $bar->advance();
         }
