@@ -28,7 +28,7 @@ class GrabImages extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Grab Images';
 
     /**
      * Create a new command instance.

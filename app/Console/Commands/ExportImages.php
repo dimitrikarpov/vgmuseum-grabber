@@ -20,7 +20,7 @@ class ExportImages extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Create export json file';
 
     /**
      * Create a new command instance.
