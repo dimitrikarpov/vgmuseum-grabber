@@ -76,7 +76,7 @@ class GrabImages extends Command
 
     private function grabGames($platform)
     {
-        $links = Platform::where('title', $platform)->first()->links()->pluck('url');
+        $links = Platform::whereTitle($platform)->first()->links()->pluck('url');
 
         $bar = $this->output->createProgressBar(count($links));
         $bar->start();
@@ -95,13 +95,14 @@ class GrabImages extends Command
         $gameTitle = $this->extractTitle($crawler->filter('title')->extract('_text')[0]);
         $gameSlug = Str::slug("${platform} ${gameTitle}");
 
-        $game = Game::firstOrCreate(
-            ['title' => $gameTitle],
-            [
+        $game = Game::whereTitle($gameTitle)->where('platform_id', Platform::whereTitle($platform)->first()->id)->first();
+        if (!$game) {
+            $game = Game::create([
+                'title' => $gameTitle,
                 'platform_id' => Platform::whereTitle($platform)->first()->id,
                 'slug' => Str::slug($gameTitle),
-            ]
-        );
+            ]);
+        }
 
         $images = $crawler->filter('img')->extract('src');
 
