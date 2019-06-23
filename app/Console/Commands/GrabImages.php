@@ -111,8 +111,20 @@ class GrabImages extends Command
         }
 
         try {
+            $i = 0;
             foreach ($images as $filename) {
-                $imagePath = Storage::putFileAs("images/${gameSlug}", $this->downloadImage("{$path}/${filename}"), $filename);
+                $i++;
+                if ($i > 5) {
+                    continue;
+                }
+
+                $extension = pathinfo("{$path}/${filename}")['extension'];
+
+                $imagePath = Storage::putFileAs(
+                    "images/${gameSlug}",
+                    $this->downloadImage("{$path}/${filename}"),
+                    "{$i}.{$extension}"
+                );
 
                 Image::create(['game_id' => $game->id, 'file' => $imagePath]);
             }
@@ -120,7 +132,6 @@ class GrabImages extends Command
             $this->error(" Error while grabbing {$game->title}");
             $game->delete();
         }
-
     }
 
     private function isGrabbed(Game $game, array $images)

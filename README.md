@@ -18,4 +18,4 @@ Grab images from [VGMUSEUM](http://www.vgmuseum.com)
 * run `php artisan grab nes --links` to grab *nes* games images. also it can accept *zx*, *snes*, *smd*
 * run `php artisan export` to create *export.json* file which contains game names, image paths organized by platform
 
-images directory: `storage/app/images` and json file in `storage/app/export.json`
+images directory: `storage/app/images` and json file in `storage/app/games.json`

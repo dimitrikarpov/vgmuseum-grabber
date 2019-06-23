@@ -47,7 +47,7 @@ class ExportImages extends Command
             $data->{$platform->title} = $games;
         }
 
-        Storage::put('export.json', json_encode($data));
+        Storage::put('games.json', json_encode($data));
     }
 
     private function getList(Platform $platform)
